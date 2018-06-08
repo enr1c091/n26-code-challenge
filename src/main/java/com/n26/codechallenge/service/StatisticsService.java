@@ -24,19 +24,18 @@ public class StatisticsService {
 	
 	@Transactional(readOnly = true)
 	public Statistics getStatistics() {
-		Statistics statistics = new Statistics();
 		try {
 			DoubleSummaryStatistics dstats = transactionRepository.streamAll()
 					.filter(TransactionEntity::isWithinTimeLimit) //Requires best way to handle overdue transactions. Avoid filtering all stream
 					.collect(Collectors.summarizingDouble(TransactionEntity::getAmount)); 
 	        if (dstats.getCount() > 0) {
-	        	statistics.updateStatistics(dstats.getSum(), dstats.getAverage(), dstats.getMax(), dstats.getMin(), dstats.getCount());
+	        	return new Statistics(dstats.getSum(), dstats.getAverage(), dstats.getMax(), dstats.getMin(), dstats.getCount());
 	        }
 		} catch (Exception ex) {
 			logger.error("Unable to get transactions statistics", ex);
 			throw new InternalServerException();			
 		}
-		return statistics;
+		return new Statistics();
 	}
 	
 }

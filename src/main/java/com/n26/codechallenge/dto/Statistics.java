@@ -102,12 +102,4 @@ public class Statistics implements Serializable {
 		this.count = count;
 	}
 	
-	public void updateStatistics(Double sum, Double avg, Double max, Double min, Long count) {
-		this.sum = sum;
-		this.avg = avg;
-		this.max = max;
-		this.min = min;
-		this.count = count;
-	}
-	
 }
