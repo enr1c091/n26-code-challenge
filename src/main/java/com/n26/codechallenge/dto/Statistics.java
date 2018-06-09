@@ -1,6 +1,9 @@
 package com.n26.codechallenge.dto;
 
 import java.io.Serializable;
+import java.util.Collection;
+import java.util.DoubleSummaryStatistics;
+import java.util.stream.Collectors;
 
 import javax.validation.constraints.NotNull;
 
@@ -43,22 +46,23 @@ public class Statistics implements Serializable {
 	@ApiModelProperty(notes = "Number of transactions made in the last 60 seconds", required = true, allowEmptyValue = false, example = "10")
 	private Long count = 0L;
 
+
 	@JsonCreator
-	public Statistics(@JsonProperty("sum") Double sum,
-			@JsonProperty("avg") Double avg,
-			@JsonProperty("max") Double max,
-			@JsonProperty("min") Double min,
-			@JsonProperty("count") Long count) {
+	public Statistics() {
 		
-		this.sum = sum;
-		this.avg = avg;
-		this.max = max;
-		this.min = min;
-		this.count = count;
 	}
 	
 	@JsonCreator
-	public Statistics() {
+	public Statistics(Collection<Transaction> validTransactions) {
+		DoubleSummaryStatistics dstats = validTransactions
+				.stream()
+				.collect(Collectors.summarizingDouble(Transaction::getAmount));
+		
+		this.sum = dstats.getSum();
+		this.avg = dstats.getAverage();
+		this.max = dstats.getMax() == Double.NEGATIVE_INFINITY ? 0.0 : dstats.getMax();
+		this.min = dstats.getMin() == Double.POSITIVE_INFINITY ? 0.0 : dstats.getMin();
+		this.count = dstats.getCount();
 	}
 		
 	

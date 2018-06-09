@@ -1,41 +1,55 @@
 package com.n26.codechallenge.service;
 
-import java.util.DoubleSummaryStatistics;
-import java.util.stream.Collectors;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.DelayQueue;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.n26.codechallenge.dto.Statistics;
-import com.n26.codechallenge.entity.TransactionEntity;
-import com.n26.codechallenge.exception.InternalServerException;
-import com.n26.codechallenge.repository.TransactionRepository;
+import com.n26.codechallenge.dto.Transaction;
+import com.n26.codechallenge.utils.Constants;
 
 @Service
 public class StatisticsService {
 
-	private static Logger logger = LoggerFactory.getLogger(StatisticsService.class); 
+	private BlockingQueue<Transaction> validTransactions = new DelayQueue<Transaction>();
+	private Statistics statistics = new Statistics();
 	
-	@Autowired
-	private TransactionRepository transactionRepository;
-	
-	@Transactional(readOnly = true)
+	/*
+	 * Returns the statistics of transactions made in the last 60 seconds.
+	 * 
+	 * @return		Object containing statistics (min, max, avg, sum, count) of transactions made in the last 60 seconds.
+	 * */
 	public Statistics getStatistics() {
-		try {
-			DoubleSummaryStatistics dstats = transactionRepository.streamAll()
-					.filter(TransactionEntity::isWithinTimeLimit) //Requires best way to handle overdue transactions. Avoid filtering all stream
-					.collect(Collectors.summarizingDouble(TransactionEntity::getAmount)); 
-	        if (dstats.getCount() > 0) {
-	        	return new Statistics(dstats.getSum(), dstats.getAverage(), dstats.getMax(), dstats.getMin(), dstats.getCount());
-	        }
-		} catch (Exception ex) {
-			logger.error("Unable to get transactions statistics", ex);
-			throw new InternalServerException();			
+		return this.statistics;
+	}
+
+	/*
+	 * Checks the Transaction Collection every millisecond and removes any . 
+	 * Updates statistics with remainder Transactions so no further processing is required upon requests.
+	 * */
+	@Scheduled(fixedRate = Constants.POOLING_INTERVAL)
+	private void removeExpiredTransactions() {
+		while (!validTransactions.isEmpty() && !validTransactions.peek().isWithinTimeLimit()) {
+			validTransactions.poll();
 		}
-		return new Statistics();
+		setStatistics();
 	}
 	
+	/*
+	 * Adds a new transaction to the Collection
+	 * 
+	 * @param t		Valid Transaction within the last 60 seconds.
+	 * */
+	protected void addTransaction(Transaction t) throws InterruptedException {
+		validTransactions.put(t);
+	}
+
+	/*
+	 * Updates the current statistics in-memory
+	 * */
+	private void setStatistics() {
+		this.statistics = new Statistics(validTransactions);
+	}
 }

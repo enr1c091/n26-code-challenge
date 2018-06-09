@@ -1,6 +1,8 @@
 package com.n26.codechallenge.dto;
 
-import java.io.Serializable;
+import java.time.Instant;
+import java.util.concurrent.Delayed;
+import java.util.concurrent.TimeUnit;
 
 import javax.validation.constraints.NotNull;
 
@@ -8,16 +10,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.n26.codechallenge.utils.Constants;
 
 import io.swagger.annotations.ApiModel;
 import io.swagger.annotations.ApiModelProperty;
 
 @ApiModel(description = "Represents a Transaction within the System specifications")
 @JsonInclude(Include.NON_NULL)
-public class Transaction implements Serializable{
-	
-	private static final long serialVersionUID = 1L;
-	
+public class Transaction implements Delayed{
 	
 	@NotNull
 	@JsonProperty(value = "timestamp")
@@ -49,6 +49,22 @@ public class Transaction implements Serializable{
 
 	public void setAmount(Double amount) {
 		this.amount = amount;
+	}
+
+	public boolean isWithinTimeLimit() {
+		return Instant.now().toEpochMilli() - this.timestamp <= Constants.TIMELIMIT_IN_EPOCH_MILLIS;
+	}
+	
+	@Override
+	public int compareTo(Delayed o) {
+		return o == this ?
+                0 :
+                Long.compare(getDelay(TimeUnit.MILLISECONDS), o.getDelay(TimeUnit.MILLISECONDS));
+	}
+
+	@Override
+	public long getDelay(TimeUnit unit) {
+	    return unit.convert(Constants.TIMELIMIT_IN_EPOCH_MILLIS - (Instant.now().toEpochMilli() - this.timestamp), TimeUnit.MILLISECONDS);
 	}
 	
 }
